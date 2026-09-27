@@ -21,7 +21,7 @@ MOCKGROW_URL = "https://mockgrow.com"
 PLAYSTORE_URL = "https://play.google.com/store/apps/details?id=com.zqegzu.timjvk&pcampaignid=web_share"
 ASSETS = Path(__file__).parent / "assets"
 
-st.set_page_config(page_title="ADITYA MG PDF", page_icon="📄", layout="wide")
+st.set_page_config(page_title="MockGrow PDF", page_icon="📄", layout="wide")
 
 
 # --------------------------------------------------------------------------- #
@@ -43,7 +43,7 @@ def password_gate():
     pw = secret("APP_PASSWORD")
     if not pw or st.session_state.get("auth_ok"):
         return
-    st.title("📕ADITYA MG PDF")
+    st.title("📕MockGrow PDF")
     entered = st.text_input("Password", type="password")
     if entered:
         if hmac.compare_digest(entered, str(pw)):
