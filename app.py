@@ -43,7 +43,7 @@ def password_gate():
     pw = secret("APP_PASSWORD")
     if not pw or st.session_state.get("auth_ok"):
         return
-    st.title("📄 PDF Brander")
+    st.title("📕ADITYA MG PDF")
     entered = st.text_input("Password", type="password")
     if entered:
         if hmac.compare_digest(entered, str(pw)):
