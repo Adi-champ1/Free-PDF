@@ -1,8 +1,0 @@
-.streamlit/secrets.toml
-client_secret*.json
-token*.json
-__pycache__/
-*.pyc
-.venv/
-*_output.xlsx
-*_output.csv
