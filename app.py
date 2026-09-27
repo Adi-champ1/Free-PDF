@@ -21,7 +21,7 @@ MOCKGROW_URL = "https://mockgrow.com"
 PLAYSTORE_URL = "https://play.google.com/store/apps/details?id=com.zqegzu.timjvk&pcampaignid=web_share"
 ASSETS = Path(__file__).parent / "assets"
 
-st.set_page_config(page_title="PDF Brander", page_icon="📄", layout="wide")
+st.set_page_config(page_title="ADITYA MG PDF", page_icon="📄", layout="wide")
 
 
 # --------------------------------------------------------------------------- #
