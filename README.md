@@ -1,4 +1,4 @@
-# 📄 PDF Brander
+# 📄 ADITYA MG PDF Tool
 
 A free, self-hosted alternative to iLovePDF for bulk branding PDFs.
 
