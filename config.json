@@ -1,0 +1,36 @@
+{
+  "drive_folder_id": "1uirArcTa5b5nTtIPnesG52g5VjsmqWn7",
+  "workers": 4,
+  "overwrite": false,
+  "make_public": true,
+
+  "header_pdf": "assets/header.pdf",
+  "footer_pdf": "assets/footer.pdf",
+  "inserts": [],
+
+  "logo": {
+    "image": "assets/logo.png",
+    "enabled": true,
+    "link": "https://mockgrow.com",
+    "opacity": 0.3,
+    "width_pct": 30,
+    "rotation": 0,
+    "position": "center",
+    "margin_pt": 24,
+    "pages": "all",
+    "tile": false,
+    "behind_content": false
+  },
+
+  "playstore": {
+    "image": null,
+    "enabled": true,
+    "link": "https://play.google.com/store/apps/details?id=com.zqegzu.timjvk&pcampaignid=web_share",
+    "opacity": 1.0,
+    "width_pct": 18,
+    "rotation": 0,
+    "position": "bottom-right",
+    "margin_pt": 24,
+    "pages": "all"
+  }
+}
