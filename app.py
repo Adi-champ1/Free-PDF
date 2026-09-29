@@ -30,7 +30,7 @@ DEFAULT_HANDLES = [
 ]
 ASSETS = Path(__file__).parent / "assets"
 
-st.set_page_config(page_title="PDF Brander", page_icon="📄", layout="wide")
+st.set_page_config(page_title="MockGrow PDF", page_icon="📕", layout="wide")
 
 
 # --------------------------------------------------------------------------- #
@@ -57,7 +57,7 @@ def password_gate():
     pw = secret("APP_PASSWORD")
     if not pw or st.session_state.get("auth_ok"):
         return
-    st.title("📄 PDF Brander")
+    st.title("📕 MockGrow PDF")
     entered = st.text_input("Password", type="password")
     if entered:
         if hmac.compare_digest(entered, str(pw)):
@@ -197,7 +197,7 @@ def _sample() -> bytes:
 # UI
 # --------------------------------------------------------------------------- #
 password_gate()
-st.title("📄 PDF Brander")
+st.title("📕 MockGrow PDF")
 st.caption("Add a hyperlinked logo, social / app handles and header / footer / custom pages to PDFs — "
            "one file or a whole sheet of Google Drive links.")
 
