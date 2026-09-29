@@ -15,11 +15,12 @@ from dataclasses import fields
 from pathlib import Path
 
 from drive_client import DriveClient
-from pdf_engine import InsertSpec, JobConfig, StampConfig, default_playstore_badge
+from pdf_engine import Handle, HandlesConfig, InsertSpec, JobConfig, StampConfig
 from processor import OUT_COL, process_sheet, read_sheet, to_csv_bytes, to_excel_bytes
 
 BASE = Path(__file__).parent
 STAMP_FIELDS = {f.name for f in fields(StampConfig)} - {"image"}
+HANDLES_FIELDS = {f.name for f in fields(HandlesConfig)} - {"handles"}
 
 
 def load(path):
@@ -32,11 +33,18 @@ def load(path):
     return p.read_bytes()
 
 
-def stamp_from(d, fallback=None):
+def stamp_from(d):
     if not d:
         return None
-    return StampConfig(image=load(d.get("image")) or fallback,
-                       **{k: v for k, v in d.items() if k in STAMP_FIELDS})
+    return StampConfig(image=load(d.get("image")), **{k: v for k, v in d.items() if k in STAMP_FIELDS})
+
+
+def handles_from(d):
+    if not d:
+        return None
+    items = [Handle(name=h.get("name", ""), image=load(h.get("image")), link=h.get("link", ""),
+                    enabled=h.get("enabled", True)) for h in d.get("handles", [])]
+    return HandlesConfig(handles=items, **{k: v for k, v in d.items() if k in HANDLES_FIELDS})
 
 
 def drive_from_secrets(path: Path) -> DriveClient:
@@ -63,7 +71,7 @@ def main():
         inserts=[InsertSpec(pdf=load(i["pdf"]), after=str(i.get("after", "1")))
                  for i in cfg.get("inserts", [])],
         logo=stamp_from(cfg.get("logo")),
-        playstore=stamp_from(cfg.get("playstore"), fallback=default_playstore_badge()),
+        handles=handles_from(cfg.get("handles")),
     )
     drive = drive_from_secrets(BASE / args.secrets)
     sheet = Path(args.sheet)

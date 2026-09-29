@@ -1,6 +1,7 @@
 """
-Core PDF engine — merge PDFs, insert header / footer / custom pages and stamp
-hyperlinked images (logo watermark, Play Store badge) onto pages.
+Core PDF engine — merge PDFs, insert header / footer / custom pages, stamp a
+hyperlinked logo watermark and a group of hyperlinked "handles" (Play Store,
+Instagram, YouTube, Telegram, Website, ...) onto pages.
 
 Built only on free, open-source libraries: PyMuPDF + Pillow.
 """
@@ -13,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 import pymupdf as fitz  # PyMuPDF
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 # PyMuPDF is NOT thread-safe. All PDF work goes through this lock, while
 # downloads/uploads (the slow part) still run in parallel threads.
@@ -43,7 +44,7 @@ PAGE_MODES = {
 # --------------------------------------------------------------------------- #
 @dataclass
 class StampConfig:
-    """Settings for one stamped image (logo watermark or Play Store badge)."""
+    """Settings for the logo watermark."""
     image: Optional[bytes] = None
     enabled: bool = True
     link: str = ""
@@ -76,22 +77,53 @@ class InsertSpec:
 
 
 @dataclass
+class Handle:
+    """One icon in the Additional Handles group."""
+    name: str
+    image: Optional[bytes]
+    link: str
+    enabled: bool = True
+
+
+@dataclass
+class HandlesConfig:
+    """Additional Handles: several icons laid out together, each with its own link."""
+    handles: List[Handle] = field(default_factory=list)
+    enabled: bool = True
+    layout: str = "horizontal"    # "horizontal" (row) or "vertical" (column)
+    icon_size_pct: float = 5.0    # icon height as % of page width
+    spacing_pct: float = 1.5      # gap between icons as % of page width
+    opacity: float = 1.0
+    position: str = "bottom-right"
+    margin_pt: float = 24.0
+    custom_x_pct: float = 50.0
+    custom_y_pct: float = 95.0
+    pages: str = "all"
+    custom_pages: str = ""
+    behind_content: bool = False
+
+
+@dataclass
 class JobConfig:
     header_pdf: Optional[bytes] = None
     footer_pdf: Optional[bytes] = None
     inserts: List[InsertSpec] = field(default_factory=list)
     logo: Optional[StampConfig] = None
-    playstore: Optional[StampConfig] = None
-    _prepared: Optional[List[Tuple[StampConfig, PreparedStamp]]] = field(default=None, repr=False)
+    handles: Optional[HandlesConfig] = None
+    _prepared: Optional[tuple] = field(default=None, repr=False)
 
-    def prepared(self) -> List[Tuple[StampConfig, PreparedStamp]]:
-        """Pre-process stamp images once per batch (rotation, opacity, resize)."""
+    def prepared(self):
+        """Pre-process all images once per batch -> (logo_prep | None, [(Handle, prep), ...])."""
         if self._prepared is None:
-            self._prepared = [
-                (c, prepare_stamp(c))
-                for c in (self.logo, self.playstore)
-                if c is not None and c.enabled and c.image
-            ]
+            logo = None
+            if self.logo and self.logo.enabled and self.logo.image:
+                logo = prepare_image(self.logo.image, self.logo.rotation, self.logo.opacity)
+            handles = []
+            if self.handles and self.handles.enabled:
+                for h in self.handles.handles:
+                    if h.enabled and h.image and normalize_url(h.link):
+                        handles.append((h, prepare_image(h.image, 0, self.handles.opacity)))
+            self._prepared = (logo, handles)
         return self._prepared
 
 
@@ -105,19 +137,19 @@ def normalize_url(url: str) -> str:
     return url
 
 
-def prepare_stamp(cfg: StampConfig) -> PreparedStamp:
-    """Rotate, apply transparency and trim the stamp image with Pillow."""
-    img = Image.open(io.BytesIO(cfg.image))
+def prepare_image(image: bytes, rotation: float = 0.0, opacity: float = 1.0) -> PreparedStamp:
+    """Rotate, apply transparency and trim an image with Pillow."""
+    img = Image.open(io.BytesIO(image))
     img.load()
     img = img.convert("RGBA")
     if max(img.size) > MAX_STAMP_PX:
         img.thumbnail((MAX_STAMP_PX, MAX_STAMP_PX), Image.Resampling.LANCZOS)
-    if cfg.rotation % 360:
-        img = img.rotate(cfg.rotation, resample=Image.Resampling.BICUBIC, expand=True)
+    if rotation % 360:
+        img = img.rotate(rotation, resample=Image.Resampling.BICUBIC, expand=True)
     bbox = img.getchannel("A").getbbox()  # trim fully transparent borders
     if bbox:
         img = img.crop(bbox)
-    opacity = min(max(float(cfg.opacity), 0.01), 1.0)
+    opacity = min(max(float(opacity), 0.01), 1.0)
     if opacity < 1.0:
         alpha = img.getchannel("A").point(lambda v: round(v * opacity))
         img.putalpha(alpha)
@@ -126,33 +158,17 @@ def prepare_stamp(cfg: StampConfig) -> PreparedStamp:
     return PreparedStamp(png=buf.getvalue(), aspect=img.height / img.width)
 
 
-def _font(size: int, bold: bool = False):
-    names = ["DejaVuSans-Bold.ttf", "Arial Bold.ttf"] if bold else ["DejaVuSans.ttf", "Arial.ttf"]
-    for n in names:
-        try:
-            return ImageFont.truetype(n, size)
-        except OSError:
-            pass
-    try:
-        return ImageFont.load_default(size=size)  # Pillow >= 10.1
-    except TypeError:
-        return ImageFont.load_default()
-
-
-def default_playstore_badge() -> bytes:
-    """A simple original 'get the app' button, used when no badge image is uploaded.
-    (Upload the official Google Play badge PNG in the app if you prefer it.)"""
-    w, h = 720, 200
-    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=40, fill=(1, 135, 95, 255))
-    d.ellipse([34, 40, 154, 160], fill=(255, 255, 255, 255))
-    d.polygon([(78, 70), (78, 130), (126, 100)], fill=(1, 135, 95, 255))
-    d.text((184, 38), "Download our app", font=_font(40), fill=(255, 255, 255, 255))
-    d.text((184, 88), "on Google Play", font=_font(64, bold=True), fill=(255, 255, 255, 255))
-    buf = io.BytesIO()
-    img.save(buf, "PNG")
-    return buf.getvalue()
+def sample_pdf() -> bytes:
+    """A4 page with dummy text, used for the live preview."""
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    page.insert_text((56, 90), "Sample page", fontsize=26)
+    page.insert_textbox(fitz.Rect(56, 120, 539, 780),
+                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 45,
+                        fontsize=11, color=(0.35, 0.35, 0.35))
+    data = doc.tobytes()
+    doc.close()
+    return data
 
 
 # --------------------------------------------------------------------------- #
@@ -212,6 +228,20 @@ def select_pages(mode: str, custom: str, kinds: List[str]) -> Set[int]:
 # --------------------------------------------------------------------------- #
 # Stamping
 # --------------------------------------------------------------------------- #
+def _place(page_rect: fitz.Rect, w: float, h: float, position: str, margin: float,
+           cx_pct: float, cy_pct: float) -> fitz.Rect:
+    """Top-left corner for a w x h box at the given position."""
+    pw, ph = page_rect.width, page_rect.height
+    if position == "custom":
+        x0 = pw * cx_pct / 100.0 - w / 2
+        y0 = ph * cy_pct / 100.0 - h / 2
+    else:
+        v, hz = ("middle", "center") if position == "center" else position.split("-")
+        x0 = {"left": margin, "center": (pw - w) / 2, "right": pw - w - margin}[hz]
+        y0 = {"top": margin, "middle": (ph - h) / 2, "bottom": ph - h - margin}[v]
+    return fitz.Rect(page_rect.x0 + x0, page_rect.y0 + y0, page_rect.x0 + x0 + w, page_rect.y0 + y0 + h)
+
+
 def stamp_rects(page_rect: fitz.Rect, cfg: StampConfig, aspect: float) -> List[fitz.Rect]:
     pw, ph = page_rect.width, page_rect.height
     w = pw * cfg.width_pct / 100.0
@@ -232,38 +262,74 @@ def stamp_rects(page_rect: fitz.Rect, cfg: StampConfig, aspect: float) -> List[f
                 x += sx
             y += sy
         return rects
+    return [_place(page_rect, w, h, cfg.position, m, cfg.custom_x_pct, cfg.custom_y_pct)]
 
-    if cfg.position == "custom":
-        x0 = pw * cfg.custom_x_pct / 100.0 - w / 2
-        y0 = ph * cfg.custom_y_pct / 100.0 - h / 2
+
+def handle_rects(page_rect: fitz.Rect, cfg: HandlesConfig, aspects: List[float]) -> List[fitz.Rect]:
+    """Lay the handle icons out as one group (row or column) and position the group."""
+    pw = page_rect.width
+    size = pw * cfg.icon_size_pct / 100.0
+    gap = pw * cfg.spacing_pct / 100.0
+    if cfg.layout == "vertical":
+        widths = [min(size / a, size * 1.6) for a in aspects]  # same width-ish column
+        heights = [w * a for w, a in zip(widths, aspects)]
+        gw, gh = max(widths), sum(heights) + gap * (len(aspects) - 1)
     else:
-        v, hz = ("middle", "center") if cfg.position == "center" else cfg.position.split("-")
-        x0 = {"left": m, "center": (pw - w) / 2, "right": pw - w - m}[hz]
-        y0 = {"top": m, "middle": (ph - h) / 2, "bottom": ph - h - m}[v]
-    x0 += page_rect.x0
-    y0 += page_rect.y0
-    return [fitz.Rect(x0, y0, x0 + w, y0 + h)]
+        heights = [size] * len(aspects)                          # same height row
+        widths = [size / a for a in aspects]
+        gw, gh = sum(widths) + gap * (len(aspects) - 1), size
+    group = _place(page_rect, gw, gh, cfg.position, cfg.margin_pt, cfg.custom_x_pct, cfg.custom_y_pct)
+    rects, x, y = [], group.x0, group.y0
+    for w, h in zip(widths, heights):
+        if cfg.layout == "vertical":
+            ox = group.x0 + (gw - w) / 2
+            rects.append(fitz.Rect(ox, y, ox + w, y + h))
+            y += h + gap
+        else:
+            rects.append(fitz.Rect(x, y, x + w, y + h))
+            x += w + gap
+    return rects
 
 
-def apply_stamp(doc: fitz.Document, pages: Set[int], cfg: StampConfig, prep: PreparedStamp) -> None:
+class _ImageInserter:
+    """Embeds each image once per document and re-uses it on every page (small files)."""
+
+    def __init__(self):
+        self.xrefs: Dict[int, int] = {}
+
+    def put(self, page: fitz.Page, rect: fitz.Rect, prep: PreparedStamp, overlay: bool, uri: str) -> None:
+        if not rect.intersects(page.rect):
+            return
+        key = id(prep)
+        if key in self.xrefs:
+            page.insert_image(rect, xref=self.xrefs[key], overlay=overlay, keep_proportion=True)
+        else:
+            self.xrefs[key] = page.insert_image(rect, stream=prep.png, overlay=overlay, keep_proportion=True)
+        if uri:
+            page.insert_link({"kind": fitz.LINK_URI, "from": fitz.Rect(rect).intersect(page.rect), "uri": uri})
+
+
+def _unrotate(page: fitz.Page) -> None:
+    if page.rotation:
+        page.remove_rotation()  # makes positions behave on rotated pages
+
+
+def apply_logo(doc, pages: Set[int], cfg: StampConfig, prep: PreparedStamp, ins: _ImageInserter) -> None:
     uri = normalize_url(cfg.link)
-    xref = 0  # re-use the same embedded image on every page -> small files
     for i in sorted(pages):
         page = doc[i]
-        if page.rotation:
-            page.remove_rotation()  # makes positions behave on rotated pages
+        _unrotate(page)
         for r in stamp_rects(page.rect, cfg, prep.aspect):
-            if not r.intersects(page.rect):
-                continue
-            if xref:
-                page.insert_image(r, xref=xref, overlay=not cfg.behind_content, keep_proportion=True)
-            else:
-                xref = page.insert_image(r, stream=prep.png, overlay=not cfg.behind_content,
-                                         keep_proportion=True)
-            if uri:
-                page.insert_link({"kind": fitz.LINK_URI,
-                                  "from": fitz.Rect(r).intersect(page.rect),
-                                  "uri": uri})
+            ins.put(page, r, prep, not cfg.behind_content, uri)
+
+
+def apply_handles(doc, pages: Set[int], cfg: HandlesConfig, items, ins: _ImageInserter) -> None:
+    aspects = [p.aspect for _, p in items]
+    for i in sorted(pages):
+        page = doc[i]
+        _unrotate(page)
+        for (h, prep), r in zip(items, handle_rects(page.rect, cfg, aspects)):
+            ins.put(page, r, prep, not cfg.behind_content, normalize_url(h.link))
 
 
 # --------------------------------------------------------------------------- #
@@ -330,8 +396,13 @@ def _build(sources: Sequence[bytes], job: JobConfig) -> bytes:
         add_extra(job.footer_pdf, "Footer PDF")
     src.close()
 
-    for cfg, prep in job.prepared():
-        apply_stamp(out, select_pages(cfg.pages, cfg.custom_pages, kinds), cfg, prep)
+    logo_prep, handle_items = job.prepared()
+    ins = _ImageInserter()
+    if logo_prep:
+        apply_logo(out, select_pages(job.logo.pages, job.logo.custom_pages, kinds), job.logo, logo_prep, ins)
+    if handle_items:
+        hc = job.handles
+        apply_handles(out, select_pages(hc.pages, hc.custom_pages, kinds), hc, handle_items, ins)
 
     data = out.tobytes(garbage=3, deflate=True)
     out.close()

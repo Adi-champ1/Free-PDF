@@ -1,9 +1,11 @@
-# 📄 ADITYA MG PDF Tool
+# 📄 PDF Brander
 
 A free, self-hosted alternative to iLovePDF for bulk branding PDFs.
 
 - **Logo watermark** hyperlinked to `mockgrow.com` — opacity, size, rotation, 9 positions + custom X/Y, margin, tiling, behind/over content, choose which pages
-- **Play Store badge** hyperlinked to your app — same controls (upload the official badge PNG, or use the built-in button)
+- **Additional handles** — Play Store, Instagram, YouTube, Telegram, Website (+ any custom ones like Facebook / WhatsApp), each icon with its own link, placed together as a row or column; size, spacing, opacity, position, pages
+- **Default MockGrow logo and icons** pre-loaded from `assets/` (replace any file there to change a default)
+- **Live preview** of a sample page right under the settings
 - **Header** PDF as page 1, **footer** PDF as last page, any number of **custom pages in between**
 - **Batch mode**: sheet with Col A = final file name, Col B = Drive link(s) → final PDFs are saved to your Drive folder and you get the sheet back with **Col C = link of each final file**
 - **Single-file mode** with live page previews (no Drive needed)
@@ -16,7 +18,7 @@ A free, self-hosted alternative to iLovePDF for bulk branding PDFs.
 
 1. Create a new repository on github.com (private is fine).
 2. Upload all files from this folder (keep the `.streamlit` and `assets` folders).
-3. Optional: add your `logo.png`, `playstore.png`, `header.pdf`, `footer.pdf` into `assets/` so they are pre-loaded every time.
+3. The `assets/` folder already holds your MockGrow logo and the handle icons. Optionally add `header.pdf` and `footer.pdf` there so they are pre-loaded every time.
 
 ## 2 · Give the app access to Google Drive (10 min, one time, free)
 
@@ -54,7 +56,7 @@ Every `git push` redeploys automatically.
 
 ## 4 · Use it
 
-1. **🎨 Logo & Play Store** — upload images, set opacity / size / rotation / position / pages.
+1. **🎨 Logo & Handles** — the MockGrow logo is pre-loaded; tune opacity / size / rotation / position / pages. Paste your Instagram, YouTube and Telegram links into Additional handles (icons without a link are skipped). Change the order with the *Order* number.
 2. **📑 Header / Footer / Inserts** — upload header, footer and custom PDFs.
    Insert positions count pages of the *original* PDF: `2` · `2,5` · `every 3` · `0` (before page 1) · `last`.
 3. **👁️ Preview** — upload any PDF, check the look, tweak, repeat.

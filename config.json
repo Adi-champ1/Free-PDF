@@ -3,17 +3,15 @@
   "workers": 4,
   "overwrite": false,
   "make_public": true,
-
   "header_pdf": "assets/header.pdf",
   "footer_pdf": "assets/footer.pdf",
   "inserts": [],
-
   "logo": {
     "image": "assets/logo.png",
     "enabled": true,
     "link": "https://mockgrow.com",
     "opacity": 0.3,
-    "width_pct": 30,
+    "width_pct": 40,
     "rotation": 0,
     "position": "center",
     "margin_pt": 24,
@@ -21,16 +19,42 @@
     "tile": false,
     "behind_content": false
   },
-
-  "playstore": {
-    "image": null,
+  "handles": {
     "enabled": true,
-    "link": "https://play.google.com/store/apps/details?id=com.zqegzu.timjvk&pcampaignid=web_share",
+    "layout": "horizontal",
+    "icon_size_pct": 5,
+    "spacing_pct": 1.5,
     "opacity": 1.0,
-    "width_pct": 18,
-    "rotation": 0,
     "position": "bottom-right",
     "margin_pt": 24,
-    "pages": "all"
+    "pages": "all",
+    "behind_content": false,
+    "handles": [
+      {
+        "name": "Play Store",
+        "image": "assets/handles/playstore.png",
+        "link": "https://play.google.com/store/apps/details?id=com.zqegzu.timjvk&pcampaignid=web_share"
+      },
+      {
+        "name": "Instagram",
+        "image": "assets/handles/instagram.png",
+        "link": "https://www.instagram.com/mockgrow/"
+      },
+      {
+        "name": "YouTube",
+        "image": "assets/handles/youtube.png",
+        "link": "https://youtube.com/@mockgrow"
+      },
+      {
+        "name": "Telegram",
+        "image": "assets/handles/telegram.png",
+        "link": "https://t.me/MockGrow_Official"
+      },
+      {
+        "name": "Website",
+        "image": "assets/handles/website.png",
+        "link": "https://mockgrow.com"
+      }
+    ]
   }
 }
