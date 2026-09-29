@@ -44,8 +44,13 @@ def secret(key, default=None):
 
 
 def asset(name: str):
-    p = ASSETS / name
-    return p.read_bytes() if p.exists() else None
+    """Look in assets/<name>, then assets/<file>, then the repo's main folder."""
+    root = Path(__file__).parent
+    file = Path(name).name
+    for p in (ASSETS / name, ASSETS / file, root / file):
+        if p.exists():
+            return p.read_bytes()
+    return None
 
 
 def password_gate():

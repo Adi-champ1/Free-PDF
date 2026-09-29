@@ -26,11 +26,11 @@ HANDLES_FIELDS = {f.name for f in fields(HandlesConfig)} - {"handles"}
 def load(path):
     if not path:
         return None
-    p = BASE / path
-    if not p.exists():
-        print(f"(skipping {path}: file not found)")
-        return None
-    return p.read_bytes()
+    for p in (BASE / path, BASE / Path(path).name):  # also accept files in the main folder
+        if p.exists():
+            return p.read_bytes()
+    print(f"(skipping {path}: file not found)")
+    return None
 
 
 def stamp_from(d):
